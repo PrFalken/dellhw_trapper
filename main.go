@@ -10,8 +10,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"bosun.org/metadata"
 )
 
 const (
@@ -68,7 +66,7 @@ type Collector struct {
 	F func() (MultiDataPoint, error)
 }
 
-func Add(md *MultiDataPoint, name string, value interface{}, t TagSet, rate metadata.RateType, unit metadata.Unit, desc string) {
+func Add(md *MultiDataPoint, name string, value interface{}, t TagSet, desc string) {
 	log.Println("Adding metric : ", name, t, value)
 
 	d := DataPoint{
