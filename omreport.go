@@ -3,6 +3,30 @@ package main
 import (
 	"strconv"
 	"strings"
+
+	"github.com/prometheus/client_golang/prometheus"
+)
+
+const (
+	descDellHWChassis        = "Overall status of chassis components."
+	descDellHWSystem         = "Overall status of system components."
+	descDellHWStorageEnc     = "Overall status of storage enclosures."
+	descDellHWVDisk          = "Overall status of virtual disks."
+	descDellHWPS             = "Overall status of power supplies."
+	descDellHWCurrent        = "Amps used per power supply."
+	descDellHWPower          = "System board power usage."
+	descDellHWPowerThreshold = "The warning and failure levels set on the device for system board power usage."
+	descDellHWStorageBattery = "Status of storage controller backup batteries."
+	descDellHWStorageCtl     = "Overall status of storage controllers."
+	descDellHWPDisk          = "Overall status of physical disks."
+	descDellHWCPU            = "Overall status of CPUs."
+	descDellHWFan            = "Overall status of system fans."
+	descDellHWFanSpeed       = "System fan speed."
+	descDellHWMemory         = "System RAM DIMM status."
+	descDellHWTemp           = "Overall status of system temperature readings."
+	descDellHWTempReadings   = "System temperature readings."
+	descDellHWVolt           = "Overall status of power supply volt readings."
+	descDellHWVoltReadings   = "Volts used per power supply."
 )
 
 func readOmreport(f func([]string), args ...string) {
@@ -17,149 +41,145 @@ func readOmreport(f func([]string), args ...string) {
 	}, "/opt/dell/srvadmin/bin/omreport", args...)
 }
 
-func dummy_report() (MultiDataPoint, error) {
-	var md MultiDataPoint
-	Add(&md, "hw.dummy", "0", TagSet{"test": "dummy"}, "Dummy description")
-	return md, nil
+func dummy_report() error {
+	Add("dummy", "1", prometheus.Labels{"test": "dummy"}, "Dummy description")
+	return nil
 }
 
-func c_omreport_chassis() (MultiDataPoint, error) {
-	var md MultiDataPoint
+func c_omreport_chassis() error {
 	readOmreport(func(fields []string) {
 		if len(fields) != 2 || fields[0] == "SEVERITY" {
 			return
 		}
 		component := strings.Replace(fields[1], " ", "_", -1)
-		Add(&md, "hw.chassis", severity(fields[0]), TagSet{"component": component}, descDellHWChassis)
+		Add("chassis", severity(fields[0]), prometheus.Labels{"component": component}, descDellHWChassis)
 	}, "chassis")
-	return md, nil
+	return nil
 }
 
-func c_omreport_system() (MultiDataPoint, error) {
-	var md MultiDataPoint
+func c_omreport_system() error {
 	readOmreport(func(fields []string) {
 		if len(fields) != 2 || fields[0] == "SEVERITY" {
 			return
 		}
 		component := strings.Replace(fields[1], " ", "_", -1)
-		Add(&md, "hw.system", severity(fields[0]), TagSet{"component": component}, descDellHWSystem)
+		Add("system", severity(fields[0]), prometheus.Labels{"component": component}, descDellHWSystem)
 	}, "system")
-	return md, nil
+	return nil
 }
 
-func c_omreport_storage_enclosure() (MultiDataPoint, error) {
-	var md MultiDataPoint
+func c_omreport_storage_enclosure() error {
 	readOmreport(func(fields []string) {
 		if len(fields) < 3 || fields[0] == "ID" {
 			return
 		}
 		id := strings.Replace(fields[0], ":", "_", -1)
-		Add(&md, "hw.storage.enclosure", fields[1], TagSet{"id": id}, descDellHWStorageEnc)
+		Add("storage_enclosure", severity(fields[1]), prometheus.Labels{"id": id}, descDellHWStorageEnc)
 	}, "storage", "enclosure")
-	return md, nil
+	return nil
 }
 
-func c_omreport_storage_vdisk() (MultiDataPoint, error) {
-	var md MultiDataPoint
+func c_omreport_storage_vdisk() error {
 	readOmreport(func(fields []string) {
 		if len(fields) < 3 || fields[0] == "ID" {
 			return
 		}
 		id := strings.Replace(fields[0], ":", "_", -1)
-		Add(&md, "hw.storage.vdisk", fields[1], TagSet{"id": id}, descDellHWVDisk)
+		Add("storage_vdisk", severity(fields[1]), prometheus.Labels{"id": id}, descDellHWVDisk)
 	}, "storage", "vdisk")
-	return md, nil
+	return nil
 }
 
-func c_omreport_ps() (MultiDataPoint, error) {
-	var md MultiDataPoint
+func c_omreport_ps() error {
 	readOmreport(func(fields []string) {
 		if len(fields) < 3 || fields[0] == "Index" {
 			return
 		}
 		id := strings.Replace(fields[0], ":", "_", -1)
-		ts := TagSet{"id": id}
-		Add(&md, "hw.ps", fields[1], ts, descDellHWPS)
+		ts := prometheus.Labels{"id": id}
+		Add("ps", severity(fields[1]), ts, descDellHWPS)
 		if len(fields) < 6 {
 			return
 		}
 		if fields[4] != "" {
-			Add(&md, "hw.rated_input_wattage", fields[4], nil, descDellHWPS)
+			iWattage, err := extract(fields[4], "W")
+			if err == nil {
+				Add("rated_input_wattage", iWattage, ts, descDellHWPS)
+			}
 		}
 		if fields[5] != "" {
-			Add(&md, "hw.rated_output_wattage", fields[5], nil, descDellHWPS)
+			oWattage, err := extract(fields[5], "W")
+			if err == nil {
+				Add("rated_output_wattage", oWattage, ts, descDellHWPS)
+			}
 		}
 	}, "chassis", "pwrsupplies")
-	return md, nil
+	return nil
 }
 
-func c_omreport_ps_amps_sysboard_pwr() (MultiDataPoint, error) {
-	var md MultiDataPoint
+func c_omreport_ps_amps_sysboard_pwr() error {
 	readOmreport(func(fields []string) {
 		if len(fields) == 2 && strings.Contains(fields[0], "Current") {
-			i_fields := strings.Split(fields[0], "Current")
-			v_fields := strings.Fields(fields[1])
-			if len(i_fields) < 2 && len(v_fields) < 2 {
+			iFields := strings.Split(fields[0], "Current")
+			vFields := strings.Fields(fields[1])
+			if len(iFields) < 2 && len(vFields) < 2 {
 				return
 			}
-			id := strings.Replace(i_fields[0], " ", "", -1)
-			Add(&md, "hw.chassis.current.reading", v_fields[0], TagSet{"id": id}, descDellHWCurrent)
+			id := strings.Replace(iFields[0], " ", "", -1)
+			Add("chassis_current_reading", vFields[0], prometheus.Labels{"id": id}, descDellHWCurrent)
 		} else if len(fields) == 6 && (fields[2] == "System Board Pwr Consumption" || fields[2] == "System Board System Level") {
-			v_fields := strings.Fields(fields[3])
-			warn_fields := strings.Fields(fields[4])
-			fail_fields := strings.Fields(fields[5])
-			if len(v_fields) < 2 || len(warn_fields) < 2 || len(fail_fields) < 2 {
+			vFields := strings.Fields(fields[3])
+			warnFields := strings.Fields(fields[4])
+			failFields := strings.Fields(fields[5])
+			if len(vFields) < 2 || len(warnFields) < 2 || len(failFields) < 2 {
 				return
 			}
-			Add(&md, "hw.chassis.power.reading", v_fields[0], nil, descDellHWPower)
-			Add(&md, "hw.chassis.power.warn_level", warn_fields[0], nil, descDellHWPowerThreshold)
-			Add(&md, "hw.chassis.power.fail_level", fail_fields[0], nil, descDellHWPowerThreshold)
+			Add("chassis_power_reading", vFields[0], nil, descDellHWPower)
+			Add("chassis_power_warn_level", warnFields[0], nil, descDellHWPowerThreshold)
+			Add("chassis_power_fail_level", failFields[0], nil, descDellHWPowerThreshold)
 		}
 	}, "chassis", "pwrmonitoring")
-	return md, nil
+	return nil
 }
 
-func c_omreport_storage_battery() (MultiDataPoint, error) {
-	var md MultiDataPoint
+func c_omreport_storage_battery() error {
 	readOmreport(func(fields []string) {
 		if len(fields) < 3 || fields[0] == "ID" {
 			return
 		}
 		id := strings.Replace(fields[0], ":", "_", -1)
-		Add(&md, "hw.storage.battery", fields[1], TagSet{"id": id}, descDellHWStorageBattery)
+		Add("storage_battery", severity(fields[1]), prometheus.Labels{"id": id}, descDellHWStorageBattery)
 	}, "storage", "battery")
-	return md, nil
+	return nil
 }
 
-func c_omreport_storage_controller() (MultiDataPoint, error) {
-	var md MultiDataPoint
+func c_omreport_storage_controller() error {
 	readOmreport(func(fields []string) {
 		if len(fields) < 3 || fields[0] == "ID" {
 			return
 		}
-		c_omreport_storage_pdisk(fields[0], &md)
+		c_omreport_storage_pdisk(fields[0])
 		id := strings.Replace(fields[0], ":", "_", -1)
-		ts := TagSet{"id": id}
-		Add(&md, "hw.storage.controller", fields[1], ts, descDellHWStorageCtl)
+		ts := prometheus.Labels{"id": id}
+		Add("storage_controller", fields[1], ts, descDellHWStorageCtl)
 	}, "storage", "controller")
-	return md, nil
+	return nil
 }
 
 // c_omreport_storage_pdisk is called from the controller func, since it needs the encapsulating id.
-func c_omreport_storage_pdisk(id string, md *MultiDataPoint) {
+func c_omreport_storage_pdisk(id string) {
 	readOmreport(func(fields []string) {
 		if len(fields) < 3 || fields[0] == "ID" {
 			return
 		}
 		//Need to find out what the various ID formats might be
 		id := strings.Replace(fields[0], ":", "_", -1)
-		ts := TagSet{"id": id}
-		Add(md, "hw.storage.pdisk", fields[1], ts, descDellHWPDisk)
+		ts := prometheus.Labels{"id": id}
+		Add("storage_pdisk", fields[1], ts, descDellHWPDisk)
 	}, "storage", "pdisk", "controller="+id)
 }
 
-func c_omreport_processors() (MultiDataPoint, error) {
-	var md MultiDataPoint
+func c_omreport_processors() error {
 	readOmreport(func(fields []string) {
 		if len(fields) != 8 {
 			return
@@ -167,15 +187,13 @@ func c_omreport_processors() (MultiDataPoint, error) {
 		if _, err := strconv.Atoi(fields[0]); err != nil {
 			return
 		}
-		ts := TagSet{"name": replace(fields[2])}
-		Add(&md, "hw.chassis.processor", fields[1], ts, descDellHWCPU)
-		AddMeta("", ts, "processor", clean(fields[3], fields[4]), true)
+		ts := prometheus.Labels{"name": replace(fields[2])}
+		Add("chassis_processor", severity(fields[1]), ts, descDellHWCPU)
 	}, "chassis", "processors")
-	return md, nil
+	return nil
 }
 
-func c_omreport_fans() (MultiDataPoint, error) {
-	var md MultiDataPoint
+func c_omreport_fans() error {
 	readOmreport(func(fields []string) {
 		if len(fields) != 8 {
 			return
@@ -183,21 +201,17 @@ func c_omreport_fans() (MultiDataPoint, error) {
 		if _, err := strconv.Atoi(fields[0]); err != nil {
 			return
 		}
-		ts := TagSet{"name": replace(fields[2])}
-		Add(&md, "hw.chassis.fan", fields[1], ts, descDellHWFan)
+		ts := prometheus.Labels{"name": replace(fields[2])}
+		Add("chassis_fan", fields[1], ts, descDellHWFan)
 		fs := strings.Fields(fields[3])
 		if len(fs) == 2 && fs[1] == "RPM" {
-			i, err := strconv.Atoi(fs[0])
-			if err == nil {
-				Add(&md, "hw.chassis.fan.reading", i, ts, descDellHWFanSpeed)
-			}
+			Add("chassis_fan_reading", fs[0], ts, descDellHWFanSpeed)
 		}
 	}, "chassis", "fans")
-	return md, nil
+	return nil
 }
 
-func c_omreport_memory() (MultiDataPoint, error) {
-	var md MultiDataPoint
+func c_omreport_memory() error {
 	readOmreport(func(fields []string) {
 		if len(fields) != 5 {
 			return
@@ -205,15 +219,13 @@ func c_omreport_memory() (MultiDataPoint, error) {
 		if _, err := strconv.Atoi(fields[0]); err != nil {
 			return
 		}
-		ts := TagSet{"name": replace(fields[2])}
-		Add(&md, "hw.chassis.memory", fields[1], ts, descDellHWMemory)
-		AddMeta("", ts, "memory", clean(fields[4]), true)
+		ts := prometheus.Labels{"name": replace(fields[2])}
+		Add("chassis_memory", severity(fields[1]), ts, descDellHWMemory)
 	}, "chassis", "memory")
-	return md, nil
+	return nil
 }
 
-func c_omreport_temps() (MultiDataPoint, error) {
-	var md MultiDataPoint
+func c_omreport_temps() error {
 	readOmreport(func(fields []string) {
 		if len(fields) != 8 {
 			return
@@ -221,21 +233,17 @@ func c_omreport_temps() (MultiDataPoint, error) {
 		if _, err := strconv.Atoi(fields[0]); err != nil {
 			return
 		}
-		ts := TagSet{"name": replace(fields[2])}
-		Add(&md, "hw.chassis.temps", fields[1], ts, descDellHWTemp)
+		ts := prometheus.Labels{"name": replace(fields[2])}
+		Add("chassis_temps", severity(fields[1]), ts, descDellHWTemp)
 		fs := strings.Fields(fields[3])
 		if len(fs) == 2 && fs[1] == "C" {
-			i, err := strconv.ParseFloat(fs[0], 64)
-			if err == nil {
-				Add(&md, "hw.chassis.temps.reading", i, ts, descDellHWTempReadings)
-			}
+			Add("chassis_temps_reading", fs[0], ts, descDellHWTempReadings)
 		}
 	}, "chassis", "temps")
-	return md, nil
+	return nil
 }
 
-func c_omreport_volts() (MultiDataPoint, error) {
-	var md MultiDataPoint
+func c_omreport_volts() error {
 	readOmreport(func(fields []string) {
 		if len(fields) != 8 {
 			return
@@ -243,11 +251,11 @@ func c_omreport_volts() (MultiDataPoint, error) {
 		if _, err := strconv.Atoi(fields[0]); err != nil {
 			return
 		}
-		ts := TagSet{"name": replace(fields[2])}
-		Add(&md, "hw.chassis.volts", fields[1], ts, descDellHWVolt)
+		ts := prometheus.Labels{"name": replace(fields[2])}
+		Add("chassis_volts", severity(fields[1]), ts, descDellHWVolt)
 		if i, err := extract(fields[3], "V"); err == nil {
-			Add(&md, "hw.chassis.volts.reading", i, ts, descDellHWVoltReadings)
+			Add("chassis_volts_reading", i, ts, descDellHWVoltReadings)
 		}
 	}, "chassis", "volts")
-	return md, nil
+	return nil
 }

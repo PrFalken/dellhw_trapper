@@ -32,6 +32,24 @@ func clean(ss ...string) string {
 	return strings.Join(fs, " ")
 }
 
+// extract tries to return a parsed number from s with given suffix. A space may
+// be present between number ond suffix.
+func extract(s, suffix string) (string, error) {
+	if !strings.HasSuffix(s, suffix) {
+		return "0", fmt.Errorf("extract: suffix not found")
+	}
+	s = s[:len(s)-len(suffix)]
+	return strings.TrimSpace(s), nil
+}
+
+// severity returns 0 if s is not "Ok" or "Non-Critical", else 1.
+func severity(s string) string {
+	if s != "Ok" && s != "Non-Critical" {
+		return "1"
+	}
+	return "0"
+}
+
 func replace(name string) string {
 	r, _ := Replace(name, "_")
 	return r
@@ -64,9 +82,7 @@ func Command(timeout time.Duration, stdin io.Reader, name string, arg ...string)
 	if _, err := exec.LookPath(name); err != nil {
 		return nil, ErrPath
 	}
-	if Debug {
-		log.Println("executing command: ", name, arg)
-	}
+	log.Println("executing command: ", name, arg)
 	c := exec.Command(name, arg...)
 	b := &bytes.Buffer{}
 	c.Stdout = b
