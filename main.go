@@ -6,14 +6,18 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
 
 var (
+	exporterType      = flag.String("type", "prometheus", "Exporter type : prometheus or zabbix")
 	listenAddress     = flag.String("web.listen", ":4242", "Address on which to expose metrics and web interface.")
 	metricsPath       = flag.String("web.path", "/metrics", "Path under which to expose metrics.")
 	enabledCollectors = flag.String("collect", "dummy,chassis,memory,processors,ps,ps_amps_sysboard_pwr,storage_battery,storage_enclosure,storage_vdisk,system,temps,volts", "Comma-separated list of collectors to use.")
+
+	cache = NewMetricStorage()
 
 	collectors = map[string]Collector{
 		"dummy":      Collector{F: dummy_report},
@@ -33,26 +37,52 @@ var (
 	}
 )
 
+type metricStorage struct {
+	Lock    sync.RWMutex
+	metrics map[string]interface{}
+}
+
+func NewMetricStorage() *metricStorage {
+	ms := new(metricStorage)
+	ms.metrics = make(map[string]interface{})
+	return ms
+}
+
 type Collector struct {
 	F func() error
 }
 
 func Add(name string, value string, t prometheus.Labels, desc string) {
-	log.Println("Adding metric : ", name, t, value)
-	d := prometheus.NewGauge(prometheus.GaugeOpts{
-		Namespace:   "dell",
-		Subsystem:   "hw",
-		Name:        name,
-		Help:        desc,
-		ConstLabels: t,
-	})
-	floatValue, err := strconv.ParseFloat(value, 64)
-	if err != nil {
-		log.Println("Could not parse value for metric ", name)
-		return
+
+	switch *exporterType {
+
+	case "prometheus":
+		log.Println("Adding metric : ", name, t, value)
+		d := prometheus.NewGauge(prometheus.GaugeOpts{
+			Namespace:   "dell",
+			Subsystem:   "hw",
+			Name:        name,
+			Help:        desc,
+			ConstLabels: t,
+		})
+		floatValue, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			log.Println("Could not parse value for metric ", name)
+			return
+		}
+		d.Set(floatValue)
+		prometheus.MustRegister(d)
+
+	case "zabbix":
+		cache.Lock.Lock()
+		defer cache.Lock.Unlock()
+		zabbixMetricName := "hw." + strings.Replace(name, "_", ".", -1)
+		for _, v := range t {
+			zabbixMetricName += "." + v
+		}
+		cache.metrics[zabbixMetricName] = value
 	}
-	d.Set(floatValue)
-	prometheus.MustRegister(d)
+
 }
 
 func collect(collectors map[string]Collector) {
@@ -68,11 +98,22 @@ func collect(collectors map[string]Collector) {
 
 func main() {
 	flag.Parse()
-
 	collect(collectors)
-	http.Handle(*metricsPath, prometheus.Handler())
 
-	log.Print("listening to ", *listenAddress)
-	log.Fatal(http.ListenAndServe(*listenAddress, nil))
+	switch *exporterType {
+	case "prometheus":
+		http.Handle(*metricsPath, prometheus.Handler())
+		log.Print("listening to ", *listenAddress)
+		log.Fatal(http.ListenAndServe(*listenAddress, nil))
 
+	case "zabbix":
+		cache.Lock.Lock()
+		// di := zabbix.MakeDataItems(cache.metrics, "localhost")
+		log.Println(cache.metrics)
+		cache.Lock.Unlock()
+		// addr, _ := net.ResolveTCPAddr("tcp", "localhost:10051")
+		// res, _ := zabbix.Send(addr, di)
+		// fmt.Print(res)
+
+	}
 }
