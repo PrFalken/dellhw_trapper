@@ -2,12 +2,16 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
+	"net"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
 
+	zabbix "github.com/AlekSi/zabbix-sender"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -16,8 +20,9 @@ var (
 	listenAddress     = flag.String("web.listen", ":4242", "Address on which to expose metrics and web interface.")
 	metricsPath       = flag.String("web.path", "/metrics", "Path under which to expose metrics.")
 	enabledCollectors = flag.String("collect", "dummy,chassis,memory,processors,ps,ps_amps_sysboard_pwr,storage_battery,storage_enclosure,storage_vdisk,system,temps,volts", "Comma-separated list of collectors to use.")
-
-	cache = NewMetricStorage()
+	zabbixFromHost    = flag.String("zabbix.from", getFQDN(), "Send to Zabbix from this host name. You can also set HOSTNAME and DOMAINNAME environment variables.")
+	zabbixServer      = flag.String("zabbix.server", "localhost", "Zabbix server hostname or address")
+	cache             = NewMetricStorage()
 
 	collectors = map[string]Collector{
 		"dummy":      Collector{F: dummy_report},
@@ -85,20 +90,25 @@ func Add(name string, value string, t prometheus.Labels, desc string) {
 
 }
 
-func collect(collectors map[string]Collector) {
+func collect(collectors map[string]Collector) error {
 	for _, name := range strings.Split(*enabledCollectors, ",") {
 		collector := collectors[name]
-		log.Println("Running collector ", name)
+		log.Println("Running collector", name)
 		err := collector.F()
 		if err != nil {
-			log.Println(err)
+			return err
 		}
 	}
+	return nil
 }
 
 func main() {
 	flag.Parse()
-	collect(collectors)
+	err := collect(collectors)
+	if err != nil {
+		log.Println("Step 1 - Read probe configuration failed")
+		os.Exit(1)
+	}
 
 	switch *exporterType {
 	case "prometheus":
@@ -108,12 +118,14 @@ func main() {
 
 	case "zabbix":
 		cache.Lock.Lock()
-		// di := zabbix.MakeDataItems(cache.metrics, "localhost")
-		log.Println(cache.metrics)
+		di := zabbix.MakeDataItems(cache.metrics, *zabbixFromHost)
 		cache.Lock.Unlock()
-		// addr, _ := net.ResolveTCPAddr("tcp", "localhost:10051")
-		// res, _ := zabbix.Send(addr, di)
-		// fmt.Print(res)
-
+		addr, _ := net.ResolveTCPAddr("tcp", *zabbixServer)
+		res, err := zabbix.Send(addr, di)
+		if err != nil {
+			log.Println("Step 4 - Sent to Zabbix Server failed : ", err)
+			os.Exit(4)
+		}
+		fmt.Print(*res)
 	}
 }
