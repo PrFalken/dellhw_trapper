@@ -14,7 +14,7 @@ var (
 	exporterType        = flag.String("type", "prometheus", "Exporter type : prometheus or zabbix")
 	listenAddress       = flag.String("web.listen", ":4242", "Address on which to expose metrics and web interface.")
 	metricsPath         = flag.String("web.path", "/metrics", "Path under which to expose metrics.")
-	enabledCollectors   = flag.String("collect", "dummy,chassis,memory,processors,ps,ps_amps_sysboard_pwr,storage_battery,storage_enclosure,storage_vdisk,system,temps,volts", "Comma-separated list of collectors to use.")
+	enabledCollectors   = flag.String("collect", "dummy,chassis,fans,memory,processors,ps,ps_amps_sysboard_pwr,storage_battery,storage_enclosure,storage_vdisk,system,temps,volts", "Comma-separated list of collectors to use.")
 	zabbixFromHost      = flag.String("zabbix.from", getFQDN(), "Send to Zabbix from this host name. You can also set HOSTNAME and DOMAINNAME environment variables.")
 	zabbixServerAddress = flag.String("zabbix.server.address", "localhost", "Zabbix server hostname or address")
 	zabbixServerPort    = flag.String("zabbix.server.port", "10051", "Zabbix server port")
