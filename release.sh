@@ -60,7 +60,7 @@ sleep 5
 posturl=$(curl --data "{\"tag_name\": \"$1\",\"target_commitish\": \"master\",\"name\": \"$1\",\"body\": \"Release of version $1\",\"draft\": false,\"prerelease\": true}" https://api.github.com/repos/PrFalken/hardware_exporter/releases?access_token=${access_token} | grep "\"upload_url\"" | sed -ne 's/.*\(http[^"]*\).*/\1/p')
 
 cd ${dir}/dist/
-for file in *.tar.gz ; do
-        curl -i -X POST -H "Content-Type: application/x-gzip" --data-binary "@${file}" "${posturl%\{?name,label\}}?name=${filename}&label=${filename}&access_token=${access_token}"
+for filename in *.tar.gz ; do
+        curl -i -X POST -H "Content-Type: application/x-gzip" --data-binary "@${filename}" "${posturl%\{?name,label\}}?name=${filename}&label=${filename}&access_token=${access_token}"
 done
 cd -
