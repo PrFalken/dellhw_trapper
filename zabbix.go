@@ -36,9 +36,9 @@ func addToZabbix(name string, value string, t prometheus.Labels) {
 func sendToZabbix() {
 	cache.Lock.Lock()
 	initValue := make(map[string]interface{})
-	di := zabbix.MakeDataItems(initValue, *zabbixFromHost)
+	di := zabbix.MakeDataItems(initValue, zabbixFromHost)
 
-	if *zabbixDiscovery {
+	if zabbixDiscovery {
 		discoData := make(map[string][]zabbixDiscoveryItem)
 		discoItemList := []zabbixDiscoveryItem{}
 		for metricName := range cache.metrics {
@@ -56,13 +56,13 @@ func sendToZabbix() {
 		discoveryPayload := make(map[string]interface{})
 		discoveryPayload["dellhw.components.discovery"] = string(jsonOutput)
 
-		di = zabbix.MakeDataItems(discoveryPayload, *zabbixFromHost)
+		di = zabbix.MakeDataItems(discoveryPayload, zabbixFromHost)
 
 	} else {
-		di = zabbix.MakeDataItems(cache.metrics, *zabbixFromHost)
+		di = zabbix.MakeDataItems(cache.metrics, zabbixFromHost)
 	}
 	cache.Lock.Unlock()
-	addr, _ := net.ResolveTCPAddr("tcp", *zabbixServerAddress+":"+*zabbixServerPort)
+	addr, _ := net.ResolveTCPAddr("tcp", zabbixServerAddress+":"+zabbixServerPort)
 	res, err := zabbix.Send(addr, di)
 	if err != nil {
 		log.Println("Step 4 - Sent to Zabbix Server failed : ", err)

@@ -54,7 +54,7 @@ type collector struct {
 }
 
 func collect(collectors map[string]collector) error {
-	for _, name := range strings.Split(*enabledCollectors, ",") {
+	for _, name := range strings.Split(enabledCollectors, ",") {
 		collector := collectors[name]
 		log.Println("Running collector", name)
 		err := collector.F()
@@ -76,6 +76,18 @@ func readOmreport(f func([]string), args ...string) {
 		f(sp)
 		return nil
 	}, "/opt/dell/srvadmin/bin/omreport", args...)
+}
+
+func add(name string, value string, t prometheus.Labels, desc string) {
+
+	switch exporterType {
+
+	case "prometheus":
+		addToPrometheus(name, value, t, desc)
+
+	case "zabbix":
+		addToZabbix(name, value, t)
+	}
 }
 
 func dummyReport() error {
