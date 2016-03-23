@@ -210,7 +210,7 @@ func omreportStorageController() error {
 		omreportStoragePdisk(fields[0])
 		id := strings.Replace(fields[0], ":", "_", -1)
 		ts := prometheus.Labels{"id": id}
-		add("storage_controller", fields[1], ts, descDellHWStorageCtl)
+		add("storage_controller", severity(fields[1]), ts, descDellHWStorageCtl)
 	}, "storage", "controller")
 	return nil
 }
@@ -224,7 +224,7 @@ func omreportStoragePdisk(id string) {
 		//Need to find out what the various ID formats might be
 		id := strings.Replace(fields[0], ":", "_", -1)
 		ts := prometheus.Labels{"id": id}
-		add("storage_pdisk", fields[1], ts, descDellHWPDisk)
+		add("storage_pdisk", severity(fields[1]), ts, descDellHWPDisk)
 	}, "storage", "pdisk", "controller="+id)
 }
 
