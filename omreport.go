@@ -251,7 +251,7 @@ func omreportFans() error {
 			return
 		}
 		ts := prometheus.Labels{"name": replace(fields[2])}
-		add("chassis_fan", fields[1], ts, descDellHWFan)
+		add("chassis_fan", severity(fields[1]), ts, descDellHWFan)
 		fs := strings.Fields(fields[3])
 		if len(fs) == 2 && fs[1] == "RPM" {
 			add("chassis_fan_reading", fs[0], ts, descDellHWFanSpeed)

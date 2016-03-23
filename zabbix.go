@@ -13,7 +13,7 @@ import (
 )
 
 type zabbixDiscoveryItem struct {
-	Name string `json:"#DELLHWCOMPONENTNAME"`
+	Name string `json:"{#DELLHWCOMPONENTNAME}"`
 }
 
 func newZabbixDiscoveryItem(name string) *zabbixDiscoveryItem {
