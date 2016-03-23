@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net"
 	"os"
 	"strings"
@@ -48,7 +49,8 @@ func sendToZabbix() {
 
 		jsonOutput, err := json.Marshal(discoData)
 		if err != nil {
-			log.Error("Discovery failure, could not marshal to json")
+			log.Debug("Discovery failure, could not marshal to json")
+			fmt.Println("2")
 			os.Exit(2)
 		}
 
@@ -64,8 +66,10 @@ func sendToZabbix() {
 	addr, _ := net.ResolveTCPAddr("tcp", zabbixServerAddress+":"+zabbixServerPort)
 	res, err := zabbix.Send(addr, di)
 	if err != nil {
-		log.Error("Step 4 - Sent to Zabbix Server failed : ", err)
+		log.Debug("Step 4 - Sent to Zabbix Server failed : ", err)
+		fmt.Println("4")
 		os.Exit(4)
 	}
-	log.Info(*res)
+	log.Debug(*res)
+	fmt.Println("0")
 }

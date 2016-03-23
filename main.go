@@ -20,6 +20,10 @@ var (
 		},
 	}
 
+	HWEVersion string
+	BuildDate  string
+	logLevel   string
+
 	exporterType        string
 	listenAddress       string
 	metricsPath         string
@@ -34,6 +38,7 @@ var (
 )
 
 func init() {
+	RootCmd.Flags().StringVarP(&logLevel, "loglevel", "L", "info", "Set log level")
 	RootCmd.Flags().StringVarP(&exporterType, "type", "t", "zabbix", "Exporter type : prometheus or zabbix")
 	RootCmd.Flags().StringVarP(&listenAddress, "web-listen", "l", "127.0.0.1", "Address on which to expose metrics and web interface.")
 	RootCmd.Flags().StringVarP(&metricsPath, "web-path", "m", "/metrics", "Path under which to expose metrics.")
@@ -43,22 +48,44 @@ func init() {
 	RootCmd.Flags().StringVarP(&zabbixServerPort, "zabbix-port", "p", "10051", "Zabbix server port")
 	RootCmd.Flags().BoolVar(&zabbixDiscovery, "discovery", false, "Perform Zabbix low level discovery on hardware elements")
 	RootCmd.Flags().BoolVar(&zabbixUpdateItems, "update-items", false, "Get & send items to Zabbix. This is the default behaviour")
-
-	log.SetLevel(log.DebugLevel)
+	RootCmd.AddCommand(versionCmd)
 
 }
 
+var versionCmd = &cobra.Command{
+	Use:   "version",
+	Short: "Print the version number of hardware_exporter",
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Print("hardware_exporter\n\n")
+		fmt.Printf("version    : %s\n", HWEVersion)
+		if BuildDate != "" {
+			fmt.Printf("build date : %s\n", BuildDate)
+		}
+	},
+}
+
 func runMainCommand() {
+
+	if logLevel == "info" {
+		log.SetLevel(log.InfoLevel)
+	}
+	if logLevel == "debug" {
+		log.SetLevel(log.DebugLevel)
+	}
+	if logLevel == "error" {
+		log.SetLevel(log.ErrorLevel)
+	}
+
 	err := collect(collectors)
 	if err != nil {
-		log.Info("Collect failed")
+		log.Debug("Collect failed")
 		os.Exit(1)
 	}
 
 	switch exporterType {
 	case "prometheus":
 		http.Handle(metricsPath, prometheus.Handler())
-		log.Info("listening to ", listenAddress)
+		log.Debug("listening to ", listenAddress)
 		log.Fatal(http.ListenAndServe(listenAddress, nil))
 
 	case "zabbix":

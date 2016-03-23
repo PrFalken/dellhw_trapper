@@ -80,7 +80,7 @@ func Command(timeout time.Duration, stdin io.Reader, name string, arg ...string)
 	if _, err := exec.LookPath(name); err != nil {
 		return nil, ErrPath
 	}
-	log.Info("executing command: ", name, arg)
+	log.Debug("executing command: ", name, arg)
 	c := exec.Command(name, arg...)
 	b := &bytes.Buffer{}
 	c.Stdout = b

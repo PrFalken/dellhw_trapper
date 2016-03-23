@@ -9,7 +9,7 @@ import (
 )
 
 func addToPrometheus(name string, value string, t prometheus.Labels, desc string) {
-	log.Info("Adding metric : ", name, t, value)
+	log.Debug("Adding metric : ", name, t, value)
 	d := prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace:   "dell",
 		Subsystem:   "hw",

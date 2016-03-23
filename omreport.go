@@ -56,7 +56,7 @@ type collector struct {
 func collect(collectors map[string]collector) error {
 	for _, name := range strings.Split(enabledCollectors, ",") {
 		collector := collectors[name]
-		log.Info("Running collector ", name)
+		log.Debug("Running collector ", name)
 		err := collector.F()
 		if err != nil {
 			log.Error("Collector", name, "failed to run")
