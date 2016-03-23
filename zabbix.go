@@ -38,6 +38,8 @@ func sendToZabbix() {
 	initValue := make(map[string]interface{})
 	di := zabbix.MakeDataItems(initValue, zabbixFromHost)
 
+	metricPrefix := "dellhw.components"
+
 	if zabbixDiscovery {
 		discoData := make(map[string][]zabbixDiscoveryItem)
 		discoItemList := []zabbixDiscoveryItem{}
@@ -55,12 +57,20 @@ func sendToZabbix() {
 		}
 
 		discoveryPayload := make(map[string]interface{})
-		discoveryPayload["dellhw.components.discovery"] = string(jsonOutput)
+		discoveryPayload[metricPrefix+".discovery"] = string(jsonOutput)
 
 		di = zabbix.MakeDataItems(discoveryPayload, zabbixFromHost)
 
 	} else {
-		di = zabbix.MakeDataItems(cache.metrics, zabbixFromHost)
+
+		// add discovery name wrap
+		newMap := make(map[string]interface{})
+		for k, v := range cache.metrics {
+			newKey := metricPrefix + "[" + k + "]"
+			newMap[newKey] = v
+		}
+
+		di = zabbix.MakeDataItems(newMap, zabbixFromHost)
 	}
 	cache.Lock.Unlock()
 	addr, _ := net.ResolveTCPAddr("tcp", zabbixServerAddress+":"+zabbixServerPort)
