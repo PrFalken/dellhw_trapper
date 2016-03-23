@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/prometheus/client_golang/prometheus"
 )
 
 const (
@@ -53,6 +52,8 @@ type collector struct {
 	F func() error
 }
 
+type labels map[string]string
+
 func collect(collectors map[string]collector) error {
 	for _, name := range strings.Split(enabledCollectors, ",") {
 		collector := collectors[name]
@@ -78,20 +79,20 @@ func readOmreport(f func([]string), args ...string) {
 	}, "/opt/dell/srvadmin/bin/omreport", args...)
 }
 
-func add(name string, value string, t prometheus.Labels, desc string) {
+func add(name string, value string, t labels, desc string) {
 
-	switch exporterType {
-
-	case "prometheus":
-		addToPrometheus(name, value, t, desc)
-
-	case "zabbix":
-		addToZabbix(name, value, t)
+	cache.Lock.Lock()
+	defer cache.Lock.Unlock()
+	zabbixMetricName := "hw." + strings.Replace(name, "_", ".", -1)
+	for _, v := range t {
+		zabbixMetricName += "." + v
 	}
+	cache.metrics[zabbixMetricName] = value
+
 }
 
 func dummyReport() error {
-	add("dummy", "1", prometheus.Labels{"test": "dummy"}, "Dummy description")
+	add("dummy", "1", labels{"test": "dummy"}, "Dummy description")
 	return nil
 }
 
@@ -101,7 +102,7 @@ func omreportChassis() error {
 			return
 		}
 		component := strings.Replace(fields[1], " ", "_", -1)
-		add("chassis", severity(fields[0]), prometheus.Labels{"component": component}, descDellHWChassis)
+		add("chassis", severity(fields[0]), labels{"component": component}, descDellHWChassis)
 	}, "chassis")
 	return nil
 }
@@ -112,7 +113,7 @@ func omreportSystem() error {
 			return
 		}
 		component := strings.Replace(fields[1], " ", "_", -1)
-		add("system", severity(fields[0]), prometheus.Labels{"component": component}, descDellHWSystem)
+		add("system", severity(fields[0]), labels{"component": component}, descDellHWSystem)
 	}, "system")
 	return nil
 }
@@ -123,7 +124,7 @@ func omreportStorageEnclosure() error {
 			return
 		}
 		id := strings.Replace(fields[0], ":", "_", -1)
-		add("storage_enclosure", severity(fields[1]), prometheus.Labels{"id": id}, descDellHWStorageEnc)
+		add("storage_enclosure", severity(fields[1]), labels{"id": id}, descDellHWStorageEnc)
 	}, "storage", "enclosure")
 	return nil
 }
@@ -134,7 +135,7 @@ func omreportStorageVdisk() error {
 			return
 		}
 		id := strings.Replace(fields[0], ":", "_", -1)
-		add("storage_vdisk", severity(fields[1]), prometheus.Labels{"id": id}, descDellHWVDisk)
+		add("storage_vdisk", severity(fields[1]), labels{"id": id}, descDellHWVDisk)
 	}, "storage", "vdisk")
 	return nil
 }
@@ -145,7 +146,7 @@ func omreportPs() error {
 			return
 		}
 		id := strings.Replace(fields[0], ":", "_", -1)
-		ts := prometheus.Labels{"id": id}
+		ts := labels{"id": id}
 		add("ps", severity(fields[1]), ts, descDellHWPS)
 		if len(fields) < 6 {
 			return
@@ -175,7 +176,7 @@ func omreportPsAmpsSysboardPwr() error {
 				return
 			}
 			id := strings.Replace(iFields[0], " ", "", -1)
-			add("chassis_current_reading", vFields[0], prometheus.Labels{"id": id}, descDellHWCurrent)
+			add("chassis_current_reading", vFields[0], labels{"id": id}, descDellHWCurrent)
 		} else if len(fields) == 6 && (fields[2] == "System Board Pwr Consumption" || fields[2] == "System Board System Level") {
 			vFields := strings.Fields(fields[3])
 			warnFields := strings.Fields(fields[4])
@@ -197,7 +198,7 @@ func omreportStorageBattery() error {
 			return
 		}
 		id := strings.Replace(fields[0], ":", "_", -1)
-		add("storage_battery", severity(fields[1]), prometheus.Labels{"id": id}, descDellHWStorageBattery)
+		add("storage_battery", severity(fields[1]), labels{"id": id}, descDellHWStorageBattery)
 	}, "storage", "battery")
 	return nil
 }
@@ -209,7 +210,7 @@ func omreportStorageController() error {
 		}
 		omreportStoragePdisk(fields[0])
 		id := strings.Replace(fields[0], ":", "_", -1)
-		ts := prometheus.Labels{"id": id}
+		ts := labels{"id": id}
 		add("storage_controller", severity(fields[1]), ts, descDellHWStorageCtl)
 	}, "storage", "controller")
 	return nil
@@ -223,7 +224,7 @@ func omreportStoragePdisk(id string) {
 		}
 		//Need to find out what the various ID formats might be
 		id := strings.Replace(fields[0], ":", "_", -1)
-		ts := prometheus.Labels{"id": id}
+		ts := labels{"id": id}
 		add("storage_pdisk", severity(fields[1]), ts, descDellHWPDisk)
 	}, "storage", "pdisk", "controller="+id)
 }
@@ -236,7 +237,7 @@ func omreportProcessors() error {
 		if _, err := strconv.Atoi(fields[0]); err != nil {
 			return
 		}
-		ts := prometheus.Labels{"name": replace(fields[2])}
+		ts := labels{"name": replace(fields[2])}
 		add("chassis_processor", severity(fields[1]), ts, descDellHWCPU)
 	}, "chassis", "processors")
 	return nil
@@ -250,7 +251,7 @@ func omreportFans() error {
 		if _, err := strconv.Atoi(fields[0]); err != nil {
 			return
 		}
-		ts := prometheus.Labels{"name": replace(fields[2])}
+		ts := labels{"name": replace(fields[2])}
 		add("chassis_fan", severity(fields[1]), ts, descDellHWFan)
 		fs := strings.Fields(fields[3])
 		if len(fs) == 2 && fs[1] == "RPM" {
@@ -268,7 +269,7 @@ func omreportMemory() error {
 		if _, err := strconv.Atoi(fields[0]); err != nil {
 			return
 		}
-		ts := prometheus.Labels{"name": replace(fields[2])}
+		ts := labels{"name": replace(fields[2])}
 		add("chassis_memory", severity(fields[1]), ts, descDellHWMemory)
 	}, "chassis", "memory")
 	return nil
@@ -282,7 +283,7 @@ func omreportTemps() error {
 		if _, err := strconv.Atoi(fields[0]); err != nil {
 			return
 		}
-		ts := prometheus.Labels{"name": replace(fields[2])}
+		ts := labels{"name": replace(fields[2])}
 		add("chassis_temps", severity(fields[1]), ts, descDellHWTemp)
 		fs := strings.Fields(fields[3])
 		if len(fs) == 2 && fs[1] == "C" {
@@ -300,7 +301,7 @@ func omreportVolts() error {
 		if _, err := strconv.Atoi(fields[0]); err != nil {
 			return
 		}
-		ts := prometheus.Labels{"name": replace(fields[2])}
+		ts := labels{"name": replace(fields[2])}
 		add("chassis_volts", severity(fields[1]), ts, descDellHWVolt)
 		if i, err := extract(fields[3], "V"); err == nil {
 			add("chassis_volts_reading", i, ts, descDellHWVoltReadings)

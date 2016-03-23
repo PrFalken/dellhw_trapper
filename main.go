@@ -2,11 +2,9 @@ package main
 
 import (
 	"fmt"
-	"net/http"
 	"os"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/cobra"
 )
 
@@ -14,7 +12,7 @@ var (
 	// RootCmd is the main command
 	RootCmd = &cobra.Command{
 		Use:   "hardware_exporter",
-		Short: "Prometheus and Zabbix exporter for Dell Hardware components",
+		Short: "Zabbix exporter for Dell Hardware components",
 		Run: func(cmd *cobra.Command, args []string) {
 			runMainCommand()
 		},
@@ -24,9 +22,6 @@ var (
 	BuildDate  string
 	logLevel   string
 
-	exporterType        string
-	listenAddress       string
-	metricsPath         string
 	enabledCollectors   string
 	zabbixFromHost      string
 	zabbixServerAddress string
@@ -39,9 +34,6 @@ var (
 
 func init() {
 	RootCmd.Flags().StringVarP(&logLevel, "loglevel", "L", "info", "Set log level")
-	RootCmd.Flags().StringVarP(&exporterType, "type", "t", "zabbix", "Exporter type : prometheus or zabbix")
-	RootCmd.Flags().StringVarP(&listenAddress, "web-listen", "l", "127.0.0.1", "Address on which to expose metrics and web interface.")
-	RootCmd.Flags().StringVarP(&metricsPath, "web-path", "m", "/metrics", "Path under which to expose metrics.")
 	RootCmd.Flags().StringVarP(&enabledCollectors, "collect", "c", "chassis,fans,memory,processors,ps,ps_amps_sysboard_pwr,storage_battery,storage_enclosure,storage_controller,storage_vdisk,system,temps,volts", "Comma-separated list of collectors to use.")
 	RootCmd.Flags().StringVarP(&zabbixFromHost, "zabbix-from", "f", getFQDN(), "Send to Zabbix from this host name. You can also set HOSTNAME and DOMAINNAME environment variables.")
 	RootCmd.Flags().StringVarP(&zabbixServerAddress, "zabbix-server", "z", "localhost", "Zabbix server hostname or address")
@@ -82,15 +74,7 @@ func runMainCommand() {
 		os.Exit(1)
 	}
 
-	switch exporterType {
-	case "prometheus":
-		http.Handle(metricsPath, prometheus.Handler())
-		log.Debug("listening to ", listenAddress)
-		log.Fatal(http.ListenAndServe(listenAddress, nil))
-
-	case "zabbix":
-		sendToZabbix()
-	}
+	sendToZabbix()
 }
 
 func main() {

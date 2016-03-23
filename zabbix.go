@@ -5,11 +5,9 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"strings"
 
 	zabbix "github.com/AlekSi/zabbix-sender"
 	log "github.com/Sirupsen/logrus"
-	"github.com/prometheus/client_golang/prometheus"
 )
 
 type zabbixDiscoveryItem struct {
@@ -21,16 +19,6 @@ func newZabbixDiscoveryItem(name string) *zabbixDiscoveryItem {
 		Name: name,
 	}
 	return &item
-}
-
-func addToZabbix(name string, value string, t prometheus.Labels) {
-	cache.Lock.Lock()
-	defer cache.Lock.Unlock()
-	zabbixMetricName := "hw." + strings.Replace(name, "_", ".", -1)
-	for _, v := range t {
-		zabbixMetricName += "." + v
-	}
-	cache.metrics[zabbixMetricName] = value
 }
 
 func sendToZabbix() {
