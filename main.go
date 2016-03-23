@@ -2,10 +2,10 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/cobra"
 )
@@ -44,19 +44,21 @@ func init() {
 	RootCmd.Flags().BoolVar(&zabbixDiscovery, "discovery", false, "Perform Zabbix low level discovery on hardware elements")
 	RootCmd.Flags().BoolVar(&zabbixUpdateItems, "update-items", false, "Get & send items to Zabbix. This is the default behaviour")
 
+	log.SetLevel(log.DebugLevel)
+
 }
 
 func runMainCommand() {
 	err := collect(collectors)
 	if err != nil {
-		log.Println("Collect failed")
+		log.Info("Collect failed")
 		os.Exit(1)
 	}
 
 	switch exporterType {
 	case "prometheus":
 		http.Handle(metricsPath, prometheus.Handler())
-		log.Println("listening to ", listenAddress)
+		log.Info("listening to ", listenAddress)
 		log.Fatal(http.ListenAndServe(listenAddress, nil))
 
 	case "zabbix":

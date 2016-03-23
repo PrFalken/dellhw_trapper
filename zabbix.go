@@ -2,13 +2,12 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
-	"log"
 	"net"
 	"os"
 	"strings"
 
 	zabbix "github.com/AlekSi/zabbix-sender"
+	log "github.com/Sirupsen/logrus"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -49,7 +48,7 @@ func sendToZabbix() {
 
 		jsonOutput, err := json.Marshal(discoData)
 		if err != nil {
-			log.Println("Discovery failure, could not marshal to json")
+			log.Error("Discovery failure, could not marshal to json")
 			os.Exit(2)
 		}
 
@@ -65,8 +64,8 @@ func sendToZabbix() {
 	addr, _ := net.ResolveTCPAddr("tcp", zabbixServerAddress+":"+zabbixServerPort)
 	res, err := zabbix.Send(addr, di)
 	if err != nil {
-		log.Println("Step 4 - Sent to Zabbix Server failed : ", err)
+		log.Error("Step 4 - Sent to Zabbix Server failed : ", err)
 		os.Exit(4)
 	}
-	fmt.Print(*res)
+	log.Info(*res)
 }

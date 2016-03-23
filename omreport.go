@@ -1,10 +1,10 @@
 package main
 
 import (
-	"log"
 	"strconv"
 	"strings"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -56,10 +56,10 @@ type collector struct {
 func collect(collectors map[string]collector) error {
 	for _, name := range strings.Split(enabledCollectors, ",") {
 		collector := collectors[name]
-		log.Println("Running collector", name)
+		log.Info("Running collector ", name)
 		err := collector.F()
 		if err != nil {
-			log.Println("Collector", name, "failed to run")
+			log.Error("Collector", name, "failed to run")
 			return err
 		}
 	}

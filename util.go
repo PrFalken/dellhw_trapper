@@ -6,13 +6,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"os/exec"
 	"strings"
 	"time"
 	"unicode"
 	"unicode/utf8"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 var (
@@ -20,9 +21,6 @@ var (
 	ErrPath = errors.New("program not in PATH")
 	// ErrTimeout is returned by Command if the program timed out.
 	ErrTimeout = errors.New("program killed after timeout")
-
-	// Debug enables debug logging.
-	Debug = false
 )
 
 // clean concatenates arguments with a space and removes extra whitespace.
@@ -82,7 +80,7 @@ func Command(timeout time.Duration, stdin io.Reader, name string, arg ...string)
 	if _, err := exec.LookPath(name); err != nil {
 		return nil, ErrPath
 	}
-	log.Println("executing command: ", name, arg)
+	log.Info("executing command: ", name, arg)
 	c := exec.Command(name, arg...)
 	b := &bytes.Buffer{}
 	c.Stdout = b
@@ -92,12 +90,12 @@ func Command(timeout time.Duration, stdin io.Reader, name string, arg ...string)
 	}
 	timedOut := false
 	intTimer := time.AfterFunc(timeout, func() {
-		log.Println("Process taking too long. Interrupting: ", name, strings.Join(arg, " "))
+		log.Error("Process taking too long. Interrupting: ", name, strings.Join(arg, " "))
 		c.Process.Signal(os.Interrupt)
 		timedOut = true
 	})
 	killTimer := time.AfterFunc(timeout, func() {
-		log.Println("Process taking too long. Killing: ", name, strings.Join(arg, " "))
+		log.Error("Process taking too long. Killing: ", name, strings.Join(arg, " "))
 		c.Process.Signal(os.Interrupt)
 		timedOut = true
 	})
@@ -131,7 +129,7 @@ func readCommandTimeout(timeout time.Duration, line func(string) error, stdin io
 		}
 	}
 	if err := scanner.Err(); err != nil {
-		log.Println(name, " : ", err)
+		log.Error(name, " : ", err)
 	}
 	return nil
 }
@@ -148,7 +146,7 @@ func getFQDN() string {
 	cmd.Stdout = &out
 	err := cmd.Run()
 	if err != nil {
-		log.Println(err)
+		log.Error(err)
 	}
 	fqdn := out.String()
 	fqdn = fqdn[:len(fqdn)-1]

@@ -1,14 +1,15 @@
 package main
 
 import (
-	"log"
 	"strconv"
+
+	log "github.com/Sirupsen/logrus"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
 
 func addToPrometheus(name string, value string, t prometheus.Labels, desc string) {
-	log.Println("Adding metric : ", name, t, value)
+	log.Info("Adding metric : ", name, t, value)
 	d := prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace:   "dell",
 		Subsystem:   "hw",
@@ -18,7 +19,7 @@ func addToPrometheus(name string, value string, t prometheus.Labels, desc string
 	})
 	floatValue, err := strconv.ParseFloat(value, 64)
 	if err != nil {
-		log.Println("Could not parse value for metric ", name)
+		log.Error("Could not parse value for metric ", name)
 		return
 	}
 	d.Set(floatValue)
