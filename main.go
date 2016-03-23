@@ -42,7 +42,7 @@ func init() {
 	RootCmd.Flags().StringVarP(&exporterType, "type", "t", "zabbix", "Exporter type : prometheus or zabbix")
 	RootCmd.Flags().StringVarP(&listenAddress, "web-listen", "l", "127.0.0.1", "Address on which to expose metrics and web interface.")
 	RootCmd.Flags().StringVarP(&metricsPath, "web-path", "m", "/metrics", "Path under which to expose metrics.")
-	RootCmd.Flags().StringVarP(&enabledCollectors, "collect", "c", "chassis,fans,memory,processors,ps,ps_amps_sysboard_pwr,storage_battery,storage_enclosure,storage_vdisk,system,temps,volts", "Comma-separated list of collectors to use.")
+	RootCmd.Flags().StringVarP(&enabledCollectors, "collect", "c", "chassis,fans,memory,processors,ps,ps_amps_sysboard_pwr,storage_battery,storage_enclosure,storage_controller,storage_vdisk,system,temps,volts", "Comma-separated list of collectors to use.")
 	RootCmd.Flags().StringVarP(&zabbixFromHost, "zabbix-from", "f", getFQDN(), "Send to Zabbix from this host name. You can also set HOSTNAME and DOMAINNAME environment variables.")
 	RootCmd.Flags().StringVarP(&zabbixServerAddress, "zabbix-server", "z", "localhost", "Zabbix server hostname or address")
 	RootCmd.Flags().StringVarP(&zabbixServerPort, "zabbix-port", "p", "10051", "Zabbix server port")
