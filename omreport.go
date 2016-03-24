@@ -83,9 +83,8 @@ func add(name string, value string, t labels, desc string) {
 
 	cache.Lock.Lock()
 	defer cache.Lock.Unlock()
-	zabbixMetricName := strings.Replace(name, "_", ".", -1)
-	metric := newZabbixItem(zabbixMetricName, t, value, desc)
-	cache.metrics[zabbixMetricName] = *metric
+	metric := newZabbixItem(name, t, value, desc)
+	cache.metrics[name] = *metric
 
 }
 
