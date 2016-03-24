@@ -235,8 +235,9 @@ func omreportProcessors() error {
 		if _, err := strconv.Atoi(fields[0]); err != nil {
 			return
 		}
-		ts := labels{"name": replace(fields[2])}
-		add("chassis_processor", severity(fields[1]), ts, descDellHWCPU)
+		pname := replace(fields[2])
+		ts := labels{"{#PROCESSORNAME}": pname}
+		add("dell.hardware.processors["+pname+",status]", severity(fields[1]), ts, descDellHWCPU)
 	}, "chassis", "processors")
 	return nil
 }
