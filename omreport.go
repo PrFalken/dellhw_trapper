@@ -132,7 +132,8 @@ func omreportStorageVdisk() error {
 			return
 		}
 		id := strings.Replace(fields[0], ":", "_", -1)
-		add("storage_vdisk", severity(fields[1]), labels{"id": id}, descDellHWVDisk)
+		ts := labels{"{#LOGICALDRIVESLOT}": id}
+		add("dell.hardware.raid.logicaldrive["+id+",status]", severity(fields[1]), ts, descDellHWVDisk)
 	}, "storage", "vdisk")
 	return nil
 }
@@ -208,7 +209,7 @@ func omreportStorageController() error {
 		omreportStoragePdisk(fields[0])
 		id := strings.Replace(fields[0], ":", "_", -1)
 		ts := labels{"{#CONTROLLERSLOT}": id}
-		add("storage_controller", severity(fields[1]), ts, descDellHWStorageCtl)
+		add("dell.hardware.raid.controller["+id+",controller_status]", severity(fields[1]), ts, descDellHWStorageCtl)
 	}, "storage", "controller")
 	return nil
 }
@@ -220,9 +221,9 @@ func omreportStoragePdisk(id string) {
 			return
 		}
 		//Need to find out what the various ID formats might be
-		id := strings.Replace(fields[0], ":", "_", -1)
-		ts := labels{"id": id}
-		add("storage_pdisk", severity(fields[1]), ts, descDellHWPDisk)
+		diskID := strings.Replace(fields[0], ":", "_", -1)
+		ts := labels{"{#PHYSICALDRIVESLOT}": diskID, "{#CONTROLLERSLOT}": id}
+		add("dell.hardware.raid.physicaldrive["+diskID+",status]", severity(fields[1]), ts, descDellHWPDisk)
 	}, "storage", "pdisk", "controller="+id)
 }
 
