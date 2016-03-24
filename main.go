@@ -23,6 +23,7 @@ var (
 	logLevel   string
 
 	enabledCollectors   string
+	discoveryNameSpace  string
 	zabbixFromHost      string
 	zabbixServerAddress string
 	zabbixServerPort    string
@@ -38,6 +39,7 @@ func init() {
 	RootCmd.Flags().StringVarP(&zabbixFromHost, "zabbix-from", "f", getFQDN(), "Send to Zabbix from this host name. You can also set HOSTNAME and DOMAINNAME environment variables.")
 	RootCmd.Flags().StringVarP(&zabbixServerAddress, "zabbix-server", "z", "localhost", "Zabbix server hostname or address")
 	RootCmd.Flags().StringVarP(&zabbixServerPort, "zabbix-port", "p", "10051", "Zabbix server port")
+	RootCmd.Flags().StringVarP(&discoveryNameSpace, "namespace", "n", "", "Discovery key")
 	RootCmd.Flags().BoolVar(&zabbixDiscovery, "discovery", false, "Perform Zabbix low level discovery on hardware elements")
 	RootCmd.Flags().BoolVar(&zabbixUpdateItems, "update-items", false, "Get & send items to Zabbix. This is the default behaviour")
 	RootCmd.AddCommand(versionCmd)
@@ -74,7 +76,11 @@ func runMainCommand() {
 		os.Exit(1)
 	}
 
-	sendToZabbix()
+	if zabbixDiscovery {
+		discovery()
+	} else {
+		updateItems()
+	}
 }
 
 func main() {

@@ -83,16 +83,14 @@ func add(name string, value string, t labels, desc string) {
 
 	cache.Lock.Lock()
 	defer cache.Lock.Unlock()
-	zabbixMetricName := "hw." + strings.Replace(name, "_", ".", -1)
-	for _, v := range t {
-		zabbixMetricName += "." + v
-	}
-	cache.metrics[zabbixMetricName] = value
+	zabbixMetricName := strings.Replace(name, "_", ".", -1)
+	metric := newZabbixItem(zabbixMetricName, t, value, desc)
+	cache.metrics[zabbixMetricName] = *metric
 
 }
 
 func dummyReport() error {
-	add("dummy", "1", labels{"test": "dummy"}, "Dummy description")
+	add("dummy", "1", labels{"#{FUNKY}": "lolilol"}, "Dummy description")
 	return nil
 }
 
@@ -146,21 +144,21 @@ func omreportPs() error {
 			return
 		}
 		id := strings.Replace(fields[0], ":", "_", -1)
-		ts := labels{"id": id}
-		add("ps", severity(fields[1]), ts, descDellHWPS)
+		ts := labels{"{#POWERSLOT}": id}
+		add("dell.hardware.power["+id+",status]", severity(fields[1]), ts, descDellHWPS)
 		if len(fields) < 6 {
 			return
 		}
 		if fields[4] != "" {
 			iWattage, err := extract(fields[4], "W")
 			if err == nil {
-				add("rated_input_wattage", iWattage, ts, descDellHWPS)
+				add("dell.hardware.power["+id+",input_watts]", iWattage, ts, descDellHWPS)
 			}
 		}
 		if fields[5] != "" {
 			oWattage, err := extract(fields[5], "W")
 			if err == nil {
-				add("rated_output_wattage", oWattage, ts, descDellHWPS)
+				add("dell.hardware.power["+id+",ouput_watts]", oWattage, ts, descDellHWPS)
 			}
 		}
 	}, "chassis", "pwrsupplies")
@@ -210,7 +208,7 @@ func omreportStorageController() error {
 		}
 		omreportStoragePdisk(fields[0])
 		id := strings.Replace(fields[0], ":", "_", -1)
-		ts := labels{"id": id}
+		ts := labels{"{#CONTROLLERSLOT}": id}
 		add("storage_controller", severity(fields[1]), ts, descDellHWStorageCtl)
 	}, "storage", "controller")
 	return nil
@@ -251,11 +249,11 @@ func omreportFans() error {
 		if _, err := strconv.Atoi(fields[0]); err != nil {
 			return
 		}
-		ts := labels{"name": replace(fields[2])}
-		add("chassis_fan", severity(fields[1]), ts, descDellHWFan)
+		ts := labels{"{#FANNAME}": replace(fields[2])}
+		add("dell.hardware.fan["+replace(fields[2])+",status]", severity(fields[1]), ts, descDellHWFan)
 		fs := strings.Fields(fields[3])
 		if len(fs) == 2 && fs[1] == "RPM" {
-			add("chassis_fan_reading", fs[0], ts, descDellHWFanSpeed)
+			add("dell.hardware.fan["+replace(fields[2])+",speed]", fs[0], ts, descDellHWFanSpeed)
 		}
 	}, "chassis", "fans")
 	return nil

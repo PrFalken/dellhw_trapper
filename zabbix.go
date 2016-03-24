@@ -10,57 +10,66 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
-type zabbixDiscoveryItem struct {
-	Name string `json:"{#DELLHWCOMPONENTNAME}"`
+type zabbixItem struct {
+	Name        string
+	Labels      map[string]string
+	Value       interface{}
+	Description string
 }
 
-func newZabbixDiscoveryItem(name string) *zabbixDiscoveryItem {
-	item := zabbixDiscoveryItem{
-		Name: name,
+func newZabbixItem(name string, labels labels, value interface{}, desc string) *zabbixItem {
+	item := zabbixItem{
+		Name:        name,
+		Labels:      labels,
+		Value:       value,
+		Description: desc,
 	}
 	return &item
 }
 
-func sendToZabbix() {
+func discovery() {
+	log.Debug("Running discovery")
 	cache.Lock.Lock()
-	initValue := make(map[string]interface{})
-	di := zabbix.MakeDataItems(initValue, zabbixFromHost)
-
-	metricPrefix := "dellhw.components"
-
-	if zabbixDiscovery {
-		discoData := make(map[string][]zabbixDiscoveryItem)
-		discoItemList := []zabbixDiscoveryItem{}
-		for metricName := range cache.metrics {
-			discoItem := newZabbixDiscoveryItem(metricName)
-			discoItemList = append(discoItemList, *discoItem)
-		}
-		discoData["data"] = discoItemList
-
-		jsonOutput, err := json.Marshal(discoData)
-		if err != nil {
-			log.Debug("Discovery failure, could not marshal to json")
-			fmt.Println("2")
-			os.Exit(2)
-		}
-
-		discoveryPayload := make(map[string]interface{})
-		discoveryPayload[metricPrefix+".discovery"] = string(jsonOutput)
-
-		di = zabbix.MakeDataItems(discoveryPayload, zabbixFromHost)
-
-	} else {
-
-		// add discovery name wrap
-		newMap := make(map[string]interface{})
-		for k, v := range cache.metrics {
-			newKey := metricPrefix + "[" + k + "]"
-			newMap[newKey] = v
-		}
-
-		di = zabbix.MakeDataItems(newMap, zabbixFromHost)
+	defer cache.Lock.Lock()
+	discoData := make(map[string][]labels)
+	discoItemList := []labels{}
+	for _, item := range cache.metrics {
+		discoItem := item.Labels
+		discoItemList = append(discoItemList, discoItem)
 	}
-	cache.Lock.Unlock()
+	discoData["data"] = discoItemList
+
+	jsonOutput, err := json.Marshal(discoData)
+	if err != nil {
+		log.Debug("Discovery failure, could not marshal to json")
+		fmt.Println("2")
+		os.Exit(2)
+	}
+
+	discoveryPayload := make(map[string]interface{})
+	discoveryPayload[discoveryNameSpace+".discovery"] = string(jsonOutput)
+	log.Debug(discoveryPayload)
+	di := zabbix.MakeDataItems(discoveryPayload, zabbixFromHost)
+	sendToZabbix(di)
+}
+
+func updateItems() {
+	log.Debug("Running update-items")
+	cache.Lock.Lock()
+	defer cache.Lock.Unlock()
+
+	// add discovery name wrap
+	newMap := make(map[string]interface{})
+	for _, metric := range cache.metrics {
+		key := metric.Name
+		newMap[key] = metric.Value
+	}
+	log.Debug("sending items : ", newMap)
+	di := zabbix.MakeDataItems(newMap, zabbixFromHost)
+	sendToZabbix(di)
+}
+
+func sendToZabbix(di zabbix.DataItems) {
 	addr, _ := net.ResolveTCPAddr("tcp", zabbixServerAddress+":"+zabbixServerPort)
 	res, err := zabbix.Send(addr, di)
 	if err != nil {
