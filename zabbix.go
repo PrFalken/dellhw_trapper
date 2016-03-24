@@ -30,7 +30,7 @@ func newZabbixItem(name string, labels labels, value interface{}, desc string) *
 func discovery() {
 	log.Debug("Running discovery")
 	cache.Lock.Lock()
-	defer cache.Lock.Lock()
+	defer cache.Lock.Unlock()
 	discoData := make(map[string][]labels)
 	discoItemList := []labels{}
 	for _, item := range cache.metrics {
