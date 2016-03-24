@@ -267,8 +267,9 @@ func omreportMemory() error {
 		if _, err := strconv.Atoi(fields[0]); err != nil {
 			return
 		}
-		ts := labels{"name": replace(fields[2])}
-		add("chassis_memory", severity(fields[1]), ts, descDellHWMemory)
+		slot := replace(fields[2])
+		ts := labels{"{#MEMORYSLOT}": slot}
+		add("dell.hardware.memory["+slot+",status]", severity(fields[1]), ts, descDellHWMemory)
 	}, "chassis", "memory")
 	return nil
 }
