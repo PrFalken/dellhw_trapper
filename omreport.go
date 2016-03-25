@@ -91,12 +91,8 @@ type omReporter interface {
 }
 
 func add(name string, value string, t labels, desc string) {
-
-	cache.Lock.Lock()
-	defer cache.Lock.Unlock()
 	metric := newZabbixItem(name, t, value, desc)
 	cache.metrics[name] = *metric
-
 }
 
 func dummyReport(om omReporter) error {
