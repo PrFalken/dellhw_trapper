@@ -49,7 +49,7 @@ var (
 )
 
 type collector struct {
-	F func() error
+	F func(omReporter) error
 }
 
 type labels map[string]string
@@ -58,7 +58,8 @@ func collect(collectors map[string]collector) error {
 	for _, name := range strings.Split(enabledCollectors, ",") {
 		collector := collectors[name]
 		log.Debug("Running collector ", name)
-		err := collector.F()
+		om := newOmReport()
+		err := collector.F(om)
 		if err != nil {
 			log.Error("Collector", name, "failed to run")
 			return err
@@ -67,7 +68,13 @@ func collect(collectors map[string]collector) error {
 	return nil
 }
 
-func readOmreport(f func([]string), args ...string) {
+type omReport struct{}
+
+func newOmReport() *omReport {
+	return &omReport{}
+}
+
+func (o *omReport) Report(f func([]string), args ...string) {
 	args = append(args, "-fmt", "ssv")
 	_ = readCommand(func(line string) error {
 		sp := strings.Split(line, ";")
@@ -79,6 +86,10 @@ func readOmreport(f func([]string), args ...string) {
 	}, "/opt/dell/srvadmin/bin/omreport", args...)
 }
 
+type omReporter interface {
+	Report(f func([]string), args ...string)
+}
+
 func add(name string, value string, t labels, desc string) {
 
 	cache.Lock.Lock()
@@ -88,13 +99,13 @@ func add(name string, value string, t labels, desc string) {
 
 }
 
-func dummyReport() error {
+func dummyReport(om omReporter) error {
 	add("dummy", "1", labels{"#{FUNKY}": "lolilol"}, "Dummy description")
 	return nil
 }
 
-func omreportChassis() error {
-	readOmreport(func(fields []string) {
+func omreportChassis(om omReporter) error {
+	om.Report(func(fields []string) {
 		if len(fields) != 2 || fields[0] == "SEVERITY" {
 			return
 		}
@@ -104,8 +115,8 @@ func omreportChassis() error {
 	return nil
 }
 
-func omreportSystem() error {
-	readOmreport(func(fields []string) {
+func omreportSystem(om omReporter) error {
+	om.Report(func(fields []string) {
 		if len(fields) != 2 || fields[0] == "SEVERITY" {
 			return
 		}
@@ -115,8 +126,8 @@ func omreportSystem() error {
 	return nil
 }
 
-func omreportStorageEnclosure() error {
-	readOmreport(func(fields []string) {
+func omreportStorageEnclosure(om omReporter) error {
+	om.Report(func(fields []string) {
 		if len(fields) < 3 || fields[0] == "ID" {
 			return
 		}
@@ -126,8 +137,8 @@ func omreportStorageEnclosure() error {
 	return nil
 }
 
-func omreportStorageVdisk() error {
-	readOmreport(func(fields []string) {
+func omreportStorageVdisk(om omReporter) error {
+	om.Report(func(fields []string) {
 		if len(fields) < 3 || fields[0] == "ID" {
 			return
 		}
@@ -138,8 +149,8 @@ func omreportStorageVdisk() error {
 	return nil
 }
 
-func omreportPs() error {
-	readOmreport(func(fields []string) {
+func omreportPs(om omReporter) error {
+	om.Report(func(fields []string) {
 		if len(fields) < 3 || fields[0] == "Index" {
 			return
 		}
@@ -165,8 +176,8 @@ func omreportPs() error {
 	return nil
 }
 
-func omreportPsAmpsSysboardPwr() error {
-	readOmreport(func(fields []string) {
+func omreportPsAmpsSysboardPwr(om omReporter) error {
+	om.Report(func(fields []string) {
 		if len(fields) == 2 && strings.Contains(fields[0], "Current") {
 			iFields := strings.Split(fields[0], "Current")
 			vFields := strings.Fields(fields[1])
@@ -190,8 +201,8 @@ func omreportPsAmpsSysboardPwr() error {
 	return nil
 }
 
-func omreportStorageBattery() error {
-	readOmreport(func(fields []string) {
+func omreportStorageBattery(om omReporter) error {
+	om.Report(func(fields []string) {
 		if len(fields) < 3 || fields[0] == "ID" {
 			return
 		}
@@ -201,12 +212,12 @@ func omreportStorageBattery() error {
 	return nil
 }
 
-func omreportStorageController() error {
-	readOmreport(func(fields []string) {
+func omreportStorageController(om omReporter) error {
+	om.Report(func(fields []string) {
 		if len(fields) < 3 || fields[0] == "ID" {
 			return
 		}
-		omreportStoragePdisk(fields[0])
+		omreportStoragePdisk(om, fields[0])
 		id := strings.Replace(fields[0], ":", "_", -1)
 		ts := labels{"{#CONTROLLERSLOT}": id}
 		add("dell.hardware.raid.controller["+id+",controller_status]", severity(fields[1]), ts, descDellHWStorageCtl)
@@ -215,8 +226,8 @@ func omreportStorageController() error {
 }
 
 // omreportStoragePdisk is called from the controller func, since it needs the encapsulating id.
-func omreportStoragePdisk(id string) {
-	readOmreport(func(fields []string) {
+func omreportStoragePdisk(om omReporter, id string) {
+	om.Report(func(fields []string) {
 		if len(fields) < 3 || fields[0] == "ID" {
 			return
 		}
@@ -227,8 +238,8 @@ func omreportStoragePdisk(id string) {
 	}, "storage", "pdisk", "controller="+id)
 }
 
-func omreportProcessors() error {
-	readOmreport(func(fields []string) {
+func omreportProcessors(om omReporter) error {
+	om.Report(func(fields []string) {
 		if len(fields) != 8 {
 			return
 		}
@@ -242,8 +253,8 @@ func omreportProcessors() error {
 	return nil
 }
 
-func omreportFans() error {
-	readOmreport(func(fields []string) {
+func omreportFans(om omReporter) error {
+	om.Report(func(fields []string) {
 		if len(fields) != 8 {
 			return
 		}
@@ -260,8 +271,8 @@ func omreportFans() error {
 	return nil
 }
 
-func omreportMemory() error {
-	readOmreport(func(fields []string) {
+func omreportMemory(om omReporter) error {
+	om.Report(func(fields []string) {
 		if len(fields) != 5 {
 			return
 		}
@@ -275,8 +286,8 @@ func omreportMemory() error {
 	return nil
 }
 
-func omreportTemps() error {
-	readOmreport(func(fields []string) {
+func omreportTemps(om omReporter) error {
+	om.Report(func(fields []string) {
 		if len(fields) != 8 {
 			return
 		}
@@ -293,8 +304,8 @@ func omreportTemps() error {
 	return nil
 }
 
-func omreportVolts() error {
-	readOmreport(func(fields []string) {
+func omreportVolts(om omReporter) error {
+	om.Report(func(fields []string) {
 		if len(fields) != 8 {
 			return
 		}
