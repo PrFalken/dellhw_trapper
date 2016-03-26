@@ -165,7 +165,7 @@ func omreportPs(om omReporter) error {
 		if fields[5] != "" {
 			oWattage, err := extract(fields[5], "W")
 			if err == nil {
-				add("dell.hardware.power["+id+",ouput_watts]", oWattage, ts, descDellHWPS)
+				add("dell.hardware.power["+id+",output_watts]", oWattage, ts, descDellHWPS)
 			}
 		}
 	}, "chassis", "pwrsupplies")

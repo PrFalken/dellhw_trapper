@@ -120,12 +120,12 @@ func TestOmreportPs(t *testing.T) {
 		t.Error("Expected 0_1, got ", returnedLabel)
 	}
 	returnedStatusValue := cache.metrics["dell.hardware.power[0_1,status]"].Value
-	if returnedStatusValue != "42" {
-		t.Error("Expected return value 42, got ", returnedStatusValue)
+	if returnedStatusValue != "0" {
+		t.Error("Expected return value 0, got ", returnedStatusValue)
 	}
 	returnediWattsValue := cache.metrics["dell.hardware.power[0_1,input_watts]"].Value
 	if returnediWattsValue != "42" {
-		t.Error("Expected return value 0, got ", returnediWattsValue)
+		t.Error("Expected return value 42, got ", returnediWattsValue)
 	}
 	returnedoWattsValue := cache.metrics["dell.hardware.power[0_1,output_watts]"].Value
 	if returnedoWattsValue != "4242" {
