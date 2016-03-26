@@ -11,7 +11,7 @@ import (
 var (
 	// RootCmd is the main command
 	RootCmd = &cobra.Command{
-		Use:   "hardware_exporter",
+		Use:   "dellhw_trapper",
 		Short: "Zabbix exporter for Dell Hardware components",
 		Run: func(cmd *cobra.Command, args []string) {
 			runMainCommand()
