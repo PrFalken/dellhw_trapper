@@ -17,7 +17,7 @@ type zabbixItem struct {
 	Description string
 }
 
-func newZabbixItem(name string, labels labels, value interface{}, desc string) *zabbixItem {
+func newZabbixItem(name string, labels labels, value string, desc string) *zabbixItem {
 	item := zabbixItem{
 		Name:        name,
 		Labels:      labels,

@@ -32,8 +32,23 @@ func (o *testOmReport) Report(f func([]string), args ...string) {
 		sp := []string{"Ok", "testSystemName"}
 		f(sp)
 	}
-	// Fake "omreport storage enclosure" splitted string return"
+	// Fake "omreport storage enclosure" splitted string return
 	if reflect.DeepEqual(args, []string{"storage", "enclosure"}) {
+		sp := []string{"0:1", "Ok", "blah"}
+		f(sp)
+	}
+	// Fake "omreport storage vdisk" splitted string return
+	if reflect.DeepEqual(args, []string{"storage", "vdisk"}) {
+		sp := []string{"0:1", "Ok", "blah"}
+		f(sp)
+	}
+	// Fake "omreport chassis pwrsupplies" splitted string return
+	if reflect.DeepEqual(args, []string{"chassis", "pwrsupplies"}) {
+		sp := []string{"0:1", "Ok", "blah", "bloh", "42 W", "4242 W"}
+		f(sp)
+	}
+	// Fake "omreport chassis pwrmonitoring splitted string return
+	if reflect.DeepEqual(args, []string{"chassis", "pwrmonitoring"}) {
 		sp := []string{"0:1", "Ok", "blah"}
 		f(sp)
 	}
@@ -81,4 +96,39 @@ func TestOmreportStorageEnclosure(t *testing.T) {
 		t.Error("Expected return value 0, got ", returnedValue)
 	}
 
+}
+
+func TestOmreportStorageVdisk(t *testing.T) {
+	to := newTestOmReport()
+	omreportStorageVdisk(to)
+	returnedLabel := cache.metrics["dell.hardware.raid.logicaldrive[0_1,status]"].Labels["{#LOGICALDRIVESLOT}"]
+	if returnedLabel != "0_1" {
+		t.Error("Expected 0_1, got ", returnedLabel)
+	}
+	returnedValue := cache.metrics["dell.hardware.raid.logicaldrive[0_1,status]"].Value
+	if returnedValue != "0" {
+		t.Error("Expected return value 0, got ", returnedValue)
+	}
+
+}
+
+func TestOmreportPs(t *testing.T) {
+	to := newTestOmReport()
+	omreportPs(to)
+	returnedLabel := cache.metrics["dell.hardware.power[0_1,status]"].Labels["{#POWERSLOT}"]
+	if returnedLabel != "0_1" {
+		t.Error("Expected 0_1, got ", returnedLabel)
+	}
+	returnedStatusValue := cache.metrics["dell.hardware.power[0_1,status]"].Value
+	if returnedStatusValue != "42" {
+		t.Error("Expected return value 42, got ", returnedStatusValue)
+	}
+	returnediWattsValue := cache.metrics["dell.hardware.power[0_1,input_watts]"].Value
+	if returnediWattsValue != "42" {
+		t.Error("Expected return value 0, got ", returnediWattsValue)
+	}
+	returnedoWattsValue := cache.metrics["dell.hardware.power[0_1,output_watts]"].Value
+	if returnedoWattsValue != "4242" {
+		t.Error("Expected return value 4242, got ", returnedoWattsValue)
+	}
 }
