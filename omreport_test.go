@@ -7,8 +7,8 @@ import (
 )
 
 func showCache() {
-	for _, m := range cache.metrics {
-		fmt.Printf("%+v\n", m)
+	for k, m := range cache.metrics {
+		fmt.Printf("%s --> %+v\n", k, m)
 	}
 }
 
@@ -61,11 +61,11 @@ func (o *testOmReport) Report(f func([]string), args ...string) {
 func TestOmReportChassis(t *testing.T) {
 	to := newTestOmReport()
 	omreportChassis(to)
-	returnedLabel := cache.metrics["chassis"].Labels["component"]
+	returnedLabel := cache.metrics["dell.hardware.chassis[status]"].Labels["component"]
 	if returnedLabel != "testChassisName" {
 		t.Error("Expected testChassisName, got ", returnedLabel)
 	}
-	value := cache.metrics["chassis"].Value
+	value := cache.metrics["dell.hardware.chassis[status]"].Value
 	if value != "0" {
 		t.Error("Expected return value 0, got ", value)
 	}
@@ -74,11 +74,11 @@ func TestOmReportChassis(t *testing.T) {
 func TestOmReportSystem(t *testing.T) {
 	to := newTestOmReport()
 	omreportSystem(to)
-	returnedLabel := cache.metrics["system"].Labels["component"]
+	returnedLabel := cache.metrics["dell.hardware.system[status]"].Labels["component"]
 	if returnedLabel != "testSystemName" {
 		t.Error("Expected testSystemName, got ", returnedLabel)
 	}
-	returnedValue := cache.metrics["system"].Value
+	returnedValue := cache.metrics["dell.hardware.system[status]"].Value
 	if returnedValue != "0" {
 		t.Error("Expected return value 0, got ", returnedValue)
 	}
@@ -87,11 +87,11 @@ func TestOmReportSystem(t *testing.T) {
 func TestOmreportStorageEnclosure(t *testing.T) {
 	to := newTestOmReport()
 	omreportStorageEnclosure(to)
-	returnedLabel := cache.metrics["storage_enclosure"].Labels["id"]
+	returnedLabel := cache.metrics["dell.hardware.storage.enclosure[status]"].Labels["id"]
 	if returnedLabel != "0_1" {
 		t.Error("Expected 0_1, got ", returnedLabel)
 	}
-	returnedValue := cache.metrics["storage_enclosure"].Value
+	returnedValue := cache.metrics["dell.hardware.storage.enclosure[status]"].Value
 	if returnedValue != "0" {
 		t.Error("Expected return value 0, got ", returnedValue)
 	}
