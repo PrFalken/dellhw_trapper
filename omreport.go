@@ -70,16 +70,23 @@ func collect(collectors map[string]collector) error {
 
 	// add the number of each hardware components : How many processors, physical disks, etc.
 	reportCounts()
-
+	reportStatuses()
 	return nil
 }
 
 func reportCounts() {
 	for prefix, count := range metricCounts {
-		prefixElements := strings.Split(prefix, ".")
-		componentType := prefixElements[len(prefixElements)-1]
+		componentType := getComponentType(prefix)
 		strCount := strconv.Itoa(count)
 		add(prefix, "", "number", strCount, labels{}, "Number of components of type "+componentType)
+	}
+}
+
+func reportStatuses() {
+	for prefix, sum := range metricStatuses {
+		componentType := getComponentType(prefix)
+		strSum := strconv.Itoa(sum)
+		add(prefix, "", "status_sum", strSum, labels{}, "Sum of component statuses of type "+componentType)
 	}
 }
 
@@ -114,7 +121,13 @@ func add(prefix string, name string, metricType string, value string, t labels, 
 	cache.metrics[fullyQualifiedMetricName] = *metric
 	if metricType == "status" {
 		metricCounts[prefix]++
+		statusLevel, err := strconv.Atoi(value)
+		if err != nil {
+			log.Error("Parsing status on metric", fullyQualifiedMetricName)
+		}
+		metricStatuses[prefix] += statusLevel
 	}
+
 }
 
 func dummyReport(om omReporter) error {
@@ -213,7 +226,7 @@ func omreportPsAmpsSysboardPwr(om omReporter) error {
 			}
 			add("dell.hardware.chassis.power", "", "reading", vFields[0], nil, descDellHWPower)
 			add("dell.hardware.chassis.power.warn", "", "level", warnFields[0], nil, descDellHWPowerThreshold)
-			add("chassis.power.fail", "", "level", failFields[0], nil, descDellHWPowerThreshold)
+			add("dell.hardware.chassis.power.fail", "", "level", failFields[0], nil, descDellHWPowerThreshold)
 		}
 	}, "chassis", "pwrmonitoring")
 	return nil
@@ -225,7 +238,7 @@ func omreportStorageBattery(om omReporter) error {
 			return
 		}
 		id := strings.Replace(fields[0], ":", "_", -1)
-		add("storage.battery", "", "status", severity(fields[1]), labels{"id": id}, descDellHWStorageBattery)
+		add("dell.hardware.storage.battery", "", "status", severity(fields[1]), labels{"id": id}, descDellHWStorageBattery)
 	}, "storage", "battery")
 	return nil
 }

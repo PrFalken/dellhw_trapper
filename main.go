@@ -30,8 +30,9 @@ var (
 	zabbixDiscovery     bool
 	zabbixUpdateItems   bool
 
-	cache        = newMetricStorage()
-	metricCounts = make(map[string]int)
+	cache          = newMetricStorage()
+	metricCounts   = make(map[string]int)
+	metricStatuses = make(map[string]int)
 )
 
 func init() {

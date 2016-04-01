@@ -134,6 +134,12 @@ func readCommandTimeout(timeout time.Duration, line func(string) error, stdin io
 	return nil
 }
 
+func getComponentType(prefix string) string {
+	prefixElements := strings.Split(prefix, ".")
+	componentType := prefixElements[len(prefixElements)-1]
+	return componentType
+}
+
 func getFQDN() string {
 	hostName := os.Getenv("HOSTNAME")
 	domainName := os.Getenv("DOMAINNAME")
